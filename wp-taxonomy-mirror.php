@@ -17,11 +17,17 @@
  add_action('created_term', __NAMESPACE__ . '\\sync_categories_create', 10, 3);
  add_action('delete_term', __NAMESPACE__ . '\\sync_categories_delete', 10, 5);
 
+ /**
+	*
+	*/
  function deactivate() {
 	// delete sub term mirror option
 	delete_option(OPTION_NAME);
  }
 
+ /**
+	* Does initial mirroring of all terms from TAXONOMY_TO_MIRROR_NAME to TAXONOMY_TO_MIRROR_TO_NAME.
+	*/
  function activate() {
 	// get the saved sub term mirror values
 	$mirrored_sub_category_ids = get_option(OPTION_NAME);
@@ -32,13 +38,10 @@
 	 // get the spot category terms
 	 $taxonomy_to_mirror_terms = get_taxonomy_terms(TAXONOMY_TO_MIRROR_NAME);
 	 $new_mirrored_sub_category_ids = array();
-//	 $new_mirrored_sub_category_ids = array();
 	 foreach ($taxonomy_to_mirror_terms as $to_mirror_term) {
-
 		// now we add the sub terms to the top level terms of the taxonomy we are mirroring to
 		$taxonomy_to_mirror_to_terms = get_taxonomy_terms(TAXONOMY_TO_MIRROR_TO_NAME);
 		foreach ($taxonomy_to_mirror_to_terms as $to_mirror_to_term) {
-
 		 if ($to_mirror_to_term->parent === 0) {
 			$new_term_ids = wp_insert_term($to_mirror_term->name, TAXONOMY_TO_MIRROR_TO_NAME, array('parent' => $to_mirror_to_term->term_id, 'slug' => $to_mirror_term->name . '-' . $to_mirror_to_term->name));
 			if (!isset($new_term_ids->errors)) {
@@ -50,15 +53,21 @@
 		}
 	 }
 
+	 // todo: why are we saving to the options table?
 	 add_option(OPTION_NAME, $new_mirrored_sub_category_ids);
 	}
  }
 
 
+ /**
+	* When a term name or slug from the TAXONOMY_TO_MIRROR_NAME is edited this will check all of the TAXONOMY_TO_MIRROR_TO_NAME sub terms to make changes.
+	* @param $term_id
+	* @param $tt_id
+	* @param $taxonomy
+	*/
  function sync_categories_edit($term_id, $tt_id, $taxonomy) {
 	if ($taxonomy === TAXONOMY_TO_MIRROR_NAME) {
 	 $mirrored_sub_term_ids = get_option(OPTION_NAME);
-
 	 // get saving term values
 	 $saving_term = $_POST;
 
@@ -104,6 +113,12 @@
 	}
  }
 
+ /**
+	* When a new term is added to TAXONOMY_TO_MIRROR_NAME this will mirror the term to all TAXONOMY_TO_MIRROR_TO_NAME top lever terms as sub terms
+	* @param $term_id
+	* @param $tt_id
+	* @param $taxonomy
+	*/
  function sync_categories_create($term_id, $tt_id, $taxonomy) {
 	if ($taxonomy === TAXONOMY_TO_MIRROR_NAME) {
 	 // add new term as sub categories to all
@@ -128,11 +143,19 @@
 	}
  }
 
+ /**
+	* When a term from TAXONOMY_TO_MIRROR_NAME is deleted this will loop through all TAXONOMY_TO_MIRROR_TO_NAME terms and delete the relevant sub terms
+	* todo: does this delete the term associations to the post object?
+	* @param $term_id
+	* @param $tt_id
+	* @param $taxonomy
+	* @param $deleted_term
+	* @param $object_ids
+	*/
  function sync_categories_delete($term_id, $tt_id, $taxonomy, $deleted_term, $object_ids) {
 	if ($taxonomy === TAXONOMY_TO_MIRROR_NAME) {
 	 // get current mirror term values
 	 $mirrored_sub_term_ids = get_option(OPTION_NAME);
-
 	 // remove all terms with ids which are in saved sub term mirror where the index is matching the id of the deleted term
 	 // loop through at the index which matches the id of the deleted term
 	 foreach ($mirrored_sub_term_ids[$term_id] as $sub_term_id) {
