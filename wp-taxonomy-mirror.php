@@ -58,6 +58,21 @@
 	}
  }
 
+ function add_mirrored_terms_to_new_top_level_category($to_mirror_to_term) {
+	$taxonomy_to_mirror_terms = get_taxonomy_terms(TAXONOMY_TO_MIRROR_NAME);
+	$new_mirrored_sub_category_ids = array();
+	foreach ($taxonomy_to_mirror_terms as $to_mirror_term) {
+	 if ($to_mirror_to_term->parent === 0) {
+		$new_term_ids = wp_insert_term($to_mirror_term->name, TAXONOMY_TO_MIRROR_TO_NAME, array('parent' => $to_mirror_to_term->term_id, 'slug' => $to_mirror_term->name . '-' . $to_mirror_to_term->name));
+		if (!isset($new_term_ids->errors)) {
+		 $new_mirrored_sub_category_ids[$to_mirror_term->term_id][] = $new_term_ids['term_id'];
+		} else {
+		 $new_mirrored_sub_category_ids[$to_mirror_term->term_id][] = $new_term_ids->error_data['term_exists'];
+		}
+	 }
+	}
+ }
+
 
  /**
 	* When a term name or slug from the TAXONOMY_TO_MIRROR_NAME is edited this will check all of the TAXONOMY_TO_MIRROR_TO_NAME sub terms to make changes.
@@ -140,6 +155,13 @@
 	 $mirrored_sub_term_ids[$term_id] = $mirror_term_values_to_update;
 	 //save the new value
 	 update_option(OPTION_NAME, $mirrored_sub_term_ids);
+	} elseif ($taxonomy === TAXONOMY_TO_MIRROR_TO_NAME) {
+	 	$term = get_term_by('id', $term_id, TAXONOMY_TO_MIRROR_TO_NAME);
+	 	if($term->parent === 0){
+	 	 // we're adding a new top level term to the TAXONOMY_TO_MIRROR_TO_NAME
+		 // let's mirror the sub terms over
+		 add_mirrored_terms_to_new_top_level_category($term);
+		}
 	}
  }
 
